@@ -1,4 +1,4 @@
-# Par‚metros da an·lise
+# Par√¢metros da an√°lise
 ano = 2019
 trimestre = 3
 
@@ -7,7 +7,7 @@ pacotes = c("PNADcIBGE", "dplyr")       # Lista de pacotes
 
 for (pacote in pacotes){
   
-  # O require falha quando o pacote n„o est· instalado, com isso eu sei que tem que instalar
+  # O require falha quando o pacote n√£o est√° instalado, com isso eu sei que tem que instalar
   if (!require(pacote, character.only = TRUE)){
     install.packages(pacote)
   }
@@ -18,7 +18,7 @@ for (pacote in pacotes){
 
 
 #####################################################################################
-## Procurando o arquivo, caso n„o ache, ent„o baixa do IBGE
+## Procurando o arquivo da PNAD continua, caso n√£o ache, ent√£o baixa do IBGE
 nome_arquivo = paste( c("PNAD_", ano, "_", trimestre, ".txt"), collapse="" )
 if(!file.exists(nome_arquivo)){
   dados_PNAD_brutos <- get_pnadc(year = ano, quarter = trimestre, design = FALSE)
@@ -33,11 +33,11 @@ if(!file.exists(nome_arquivo)){
 # receberam em dinheiro, produtos ou mercadorias em qualquer trabalho)
 
 
-# A ideia aqui È somar as remuneraÁıes das pessoas do mesmo domicÌlio em um dado momento. Para isso eu pego as informaÁıes de
-# cada domicÌlio e guardo nessa variavel aqui a soma das remuneracoes.
+# A ideia aqui √© somar as remunera√ß√µes das pessoas do mesmo domic√≠lio em um dado momento. Para isso eu pego as informa√ß√µes de
+# cada domic√≠lio e guardo nessa variavel aqui a soma das remuneracoes.
 
-## OBS:descobri que d· pau por conta do jeito que o DPLYR lÍ os dados do IBGE. Um domicilio com alguem sem renda vira: NA + 1000 = NA
-# para evitar isso, troco is NA por 0 na m„o antes de fazer isso
+## OBS:descobri que d√° pau por conta do jeito que o DPLYR l√™ os dados do IBGE. Um domicilio com alguem sem renda vira: NA + 1000 = NA
+# para evitar isso, troco is NA por 0 na m√£o antes de fazer isso
 dados_PNAD_brutos$rendaPessoal <- ifelse( is.na(dados_PNAD_brutos$VD4020),0,dados_PNAD_brutos$VD4020  )
 
 remun_domicilio <- dados_PNAD_brutos %>% 
@@ -47,16 +47,16 @@ remun_domicilio <- dados_PNAD_brutos %>%
 names(remun_domicilio)[names(remun_domicilio)=='sum(rendaPessoal)']<-"Proxy_Renda_Domiciliar"# Mudando o nome da variavel para facilitar a minha vida
 
 #####################################################################################
-# Adicionando a vari·vel de renda domiciliar calculada ali em cima e consolidando os domicilios (2 entrevistas em um mesmo
-# domicilio viram 1 registro sÛ)
+# Adicionando a vari√°vel de renda domiciliar calculada ali em cima e consolidando os domicilios (2 entrevistas em um mesmo
+# domicilio viram 1 registro s√≥)
 dados_PNAD_trabalhados <- inner_join(dados_PNAD_brutos, remun_domicilio,
                                      by = c("Ano", "Trimestre", "UPA", "Estrato", "V1008")) %>%
-                          filter(V2005 == "Pessoa respons·vel pelo domicÌlio")
+                          filter(V2005 == "Pessoa respons√°vel pelo domic√≠lio")
 
 ####################################################################################
-#### Escolhendo a mÈtrica de riqueza
+#### Escolhendo a m√©trica de riqueza
 ####  * 1a opcao = renda domiciliar dividido por numero de pessoas 
-####  * 2a opcao = renda domiciliar sem divis„o
+####  * 2a opcao = renda domiciliar sem divis√£o
 
 opcao = 1
 
@@ -77,7 +77,7 @@ pnad_1_porcento %>%
   mutate(freq = 100*n / sum(n))
 
 ####################################################################################
-# Investigando aposentadoria (vers„o alfa)
+# Investigando aposentadoria (vers√£o alfa)
 
 pnad_1_porcento$dummy_idade_alta <- ifelse( pnad_1_porcento$V2009 > 65, 1, 0)
 
@@ -87,7 +87,7 @@ pnad_1_porcento %>%
   mutate(freq = 100*n / sum(n))
 
 ####################################################################################
-# Investigando se a pessoa faz parte do 1% ou n„o
+# Investigando se a pessoa faz parte do 1% ou n√£o
 
 if (opcao == 1){
   dados_PNAD_trabalhados$dummy_pertenceao1porcento <- ifelse( dados_PNAD_trabalhados$Proxy_Renda_Domiciliar / dados_PNAD_trabalhados$VD2003 > quantil_99_porcento, 1, 0)
@@ -103,29 +103,17 @@ dados_PNAD_trabalhados %>%
 
 
 #####################################################################################
-# Gr·fico da parada de Pem
+# Gr√°fico da parada de Pem
 x = seq(0.000, 1, by=0.001)
 
-output = data.frame()
+output = setNames(data.frame(matrix(ncol = 2, nrow = 0)), c( "Percentil", "Renda Domiciliar Per Capita" ))
+
 for ( v in x ) {
   output <- rbind( output, c( v, quantile(valores, v, na.rm = TRUE)))
 }
 
-output
+write.csv(output, "dados_parada_de_pem.txt", row.names = FALSE)
 
-plot(x,y)
-
-
-UPA = "110000016"
-dom = 1
-
-a <- dados_PNAD_trabalhados[ dados_PNAD_trabalhados$UPA == UPA & dados_PNAD_trabalhados$V1008 == dom  ,]
-b <- dados_PNAD_brutos[ dados_PNAD_brutos$UPA == UPA & dados_PNAD_brutos$V1008 == dom  ,]
-
-a$VD4020
-b$VD4020
-
-a$Proxy_Renda_Domiciliar
-b$Proxy_Renda_Domiciliar
-
-summary(dados_PNAD_trabalhados$Proxy_Renda_Domiciliar)
+#####################################################################################
+# Dados da PNAD para o excel
+write.csv(dados_PNAD_trabalhados, "dados_PNAD_analise.csv", row.names = FALSE)
